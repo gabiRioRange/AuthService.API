@@ -1,0 +1,28 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# SQLite local database
+AuthApi/auth.db
+AuthApi/auth.db-shm
+AuthApi/auth.db-wal
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
