@@ -36,6 +36,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: gabiRioRange/AuthService.API
           fail_ci_if_error: false
           verbose: true
