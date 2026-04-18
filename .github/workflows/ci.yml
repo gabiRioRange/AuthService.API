@@ -28,9 +28,14 @@ jobs:
       - name: Test
         run: dotnet test "Sistema de Autenticação (Login + JWT).sln" --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
+      - name: List coverage files
+        run: find ./coverage -type f -name "*.xml" || echo "No XML files found"
+        if: always()
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           directory: ./coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           verbose: true
