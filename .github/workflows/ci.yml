@@ -27,9 +27,3 @@ jobs:
 
       - name: Test
         run: dotnet test "Sistema de Autenticação (Login + JWT).sln" --no-build --configuration Release --verbosity normal
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: false
-          verbose: true

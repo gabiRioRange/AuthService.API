@@ -3,7 +3,6 @@
 _API RESTful em ASP.NET Core para cadastro, login, JWT, refresh token, perfil protegido e recursos extras de autenticação._
 
 [![CI - GitHub Actions](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/gabiRioRange/AuthService.API/graph/badge.svg)](https://codecov.io/gh/gabiRioRange/AuthService.API)
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
 ![ASP.NET Core Web API](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-5C2D91)
