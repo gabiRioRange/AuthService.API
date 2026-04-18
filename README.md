@@ -1,22 +1,14 @@
-<div align="center">
-	<h1>🔐 Sistema de Autenticação com Login + JWT</h1>
-	<p>
-		<em>API RESTful em ASP.NET Core para cadastro, login, JWT, refresh token, perfil protegido e recursos extras de autenticação.</em>
-	</p>
+# 🔐 Sistema de Autenticação com Login + JWT
 
-	<a href="./.github/workflows/ci.yml">
-		<img src="https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white" alt="CI GitHub Actions" />
-	</a>
-	<br/>
+_API RESTful em ASP.NET Core para cadastro, login, JWT, refresh token, perfil protegido e recursos extras de autenticação._
 
-	<br/>
+[![CI - GitHub Actions](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
 
-	<img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet" alt=".NET 10" />
-	<img src="https://img.shields.io/badge/ASP.NET%20Core-Web%20API-5C2D91" alt="ASP.NET Core Web API" />
-	<img src="https://img.shields.io/badge/EF%20Core-SQLite-0F6CBD" alt="EF Core SQLite" />
-	<img src="https://img.shields.io/badge/JWT-Bearer-000000" alt="JWT Bearer" />
-	<img src="https://img.shields.io/badge/status-estudo-success" alt="Status estudo" />
-</div>
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
+![ASP.NET Core Web API](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-5C2D91)
+![EF Core SQLite](https://img.shields.io/badge/EF%20Core-SQLite-0F6CBD)
+![JWT Bearer](https://img.shields.io/badge/JWT-Bearer-000000)
+![Status estudo](https://img.shields.io/badge/status-estudo-success)
 
 ---
 
