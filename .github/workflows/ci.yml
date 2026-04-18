@@ -26,4 +26,12 @@ jobs:
         run: dotnet build "Sistema de Autenticação (Login + JWT).sln" --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test "Sistema de Autenticação (Login + JWT).sln" --no-build --configuration Release --verbosity normal
+        run: dotnet test "Sistema de Autenticação (Login + JWT).sln" --no-build --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./AuthApi.Tests/coverage/coverage.cobertura.xml
+          slug: gabiRioRange/AuthService.API
+          fail_ci_if_error: false
+          verbose: true
