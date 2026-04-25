@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using AuthApi.DTOs.Auth;
+using AuthApi.DTOs.Users;
 using AuthApi.Tests.Infrastructure;
 
 namespace AuthApi.Tests;
@@ -169,6 +171,318 @@ public class AuthFlowsTests(CustomWebApplicationFactory factory) : IClassFixture
         });
 
         Assert.Equal(HttpStatusCode.OK, loginWithNewPassword.StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_WithDuplicateEmail_ShouldReturnConflict()
+    {
+        var email = $"dup_{Guid.NewGuid():N}@mail.com";
+
+        var first = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
+        {
+            FullName = "Usuario 1",
+            Email = email,
+            Password = "Senha@1234"
+        });
+
+        var second = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
+        {
+            FullName = "Usuario 2",
+            Email = email,
+            Password = "Senha@1234"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConfirmEmail_WithUnknownUser_ShouldReturnNotFound()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/confirm-email", new ConfirmEmailRequestDto
+        {
+            UserId = Guid.NewGuid().ToString("N"),
+            Token = "invalid-token"
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConfirmEmail_WithInvalidToken_ShouldReturnBadRequest()
+    {
+        var email = $"confirm_{Guid.NewGuid():N}@mail.com";
+        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
+        {
+            FullName = "Usuario Confirm",
+            Email = email,
+            Password = "Senha@1234"
+        });
+
+        var registerJson = await registerResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var response = await _client.PostAsJsonAsync("/api/auth/confirm-email", new ConfirmEmailRequestDto
+        {
+            UserId = registerJson.GetProperty("userId").GetString()!,
+            Token = "token-invalido"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_WithInvalidToken_ShouldReturnUnauthorized()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequestDto
+        {
+            RefreshToken = "refresh-token-invalido"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_WithUnknownEmail_ShouldReturnOk()
+    {
+        var before = factory.EmailSender.Emails.Count;
+
+        var response = await _client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequestDto
+        {
+            Email = $"unknown_{Guid.NewGuid():N}@mail.com"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(before, factory.EmailSender.Emails.Count);
+    }
+
+    [Fact]
+    public async Task ResetPassword_WithUnknownEmail_ShouldReturnBadRequest()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequestDto
+        {
+            Email = $"unknown_{Guid.NewGuid():N}@mail.com",
+            Token = "invalid-token",
+            NewPassword = "NovaSenha@1234"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithUnknownEmail_ShouldReturnOk()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/resend-confirmation", new ForgotPasswordRequestDto
+        {
+            Email = $"unknown_{Guid.NewGuid():N}@mail.com"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithConfirmedEmail_ShouldReturnOk()
+    {
+        var email = $"resend_confirmed_{Guid.NewGuid():N}@mail.com";
+        var password = "Senha@1234";
+
+        var register = await RegisterAndConfirmAsync(email, password);
+        Assert.NotNull(register);
+
+        var response = await _client.PostAsJsonAsync("/api/auth/resend-confirmation", new ForgotPasswordRequestDto
+        {
+            Email = email
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithPendingEmail_ShouldSendToken()
+    {
+        var email = $"resend_pending_{Guid.NewGuid():N}@mail.com";
+        var before = factory.EmailSender.Emails.Count;
+
+        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
+        {
+            FullName = "Usuario Pendente",
+            Email = email,
+            Password = "Senha@1234"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
+
+        var response = await _client.PostAsJsonAsync("/api/auth/resend-confirmation", new ForgotPasswordRequestDto
+        {
+            Email = email
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(factory.EmailSender.Emails.Count > before);
+    }
+
+    [Fact]
+    public async Task Me_WithoutToken_ShouldReturnUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/users/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Me_WithToken_ShouldReturnProfile()
+    {
+        var email = $"me_{Guid.NewGuid():N}@mail.com";
+        var (_, token) = await RegisterConfirmAndLoginAsync(email, "Senha@1234");
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await authorizedClient.GetAsync("/api/users/me");
+        var profile = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(email, profile.GetProperty("email").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateProfile_WithToken_ShouldReturnOk()
+    {
+        var email = $"update_{Guid.NewGuid():N}@mail.com";
+        var (_, token) = await RegisterConfirmAndLoginAsync(email, "Senha@1234");
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await authorizedClient.PutAsJsonAsync("/api/users/me", new UpdateProfileRequestDto
+        {
+            FullName = "Nome Atualizado",
+            Email = email
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_WithDuplicateEmail_ShouldReturnConflict()
+    {
+        var firstEmail = $"upd_first_{Guid.NewGuid():N}@mail.com";
+        var secondEmail = $"upd_second_{Guid.NewGuid():N}@mail.com";
+
+        var _ = await RegisterConfirmAndLoginAsync(firstEmail, "Senha@1234");
+        var (_, secondToken) = await RegisterConfirmAndLoginAsync(secondEmail, "Senha@1234");
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", secondToken);
+
+        var response = await authorizedClient.PutAsJsonAsync("/api/users/me", new UpdateProfileRequestDto
+        {
+            FullName = "Usuario Dois",
+            Email = firstEmail
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangePassword_WithWrongCurrentPassword_ShouldReturnBadRequest()
+    {
+        var email = $"pwd_wrong_{Guid.NewGuid():N}@mail.com";
+        var (_, token) = await RegisterConfirmAndLoginAsync(email, "Senha@1234");
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await authorizedClient.PutAsJsonAsync("/api/users/change-password", new ChangePasswordRequestDto
+        {
+            CurrentPassword = "SenhaErrada@1234",
+            NewPassword = "SenhaNova@1234"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangePassword_WithValidCurrentPassword_ShouldReturnOk()
+    {
+        var email = $"pwd_ok_{Guid.NewGuid():N}@mail.com";
+        const string currentPassword = "Senha@1234";
+        const string newPassword = "SenhaNova@1234";
+        var (_, token) = await RegisterConfirmAndLoginAsync(email, currentPassword);
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var changeResponse = await authorizedClient.PutAsJsonAsync("/api/users/change-password", new ChangePasswordRequestDto
+        {
+            CurrentPassword = currentPassword,
+            NewPassword = newPassword
+        });
+
+        var oldLogin = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDto
+        {
+            Email = email,
+            Password = currentPassword
+        });
+
+        var newLogin = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDto
+        {
+            Email = email,
+            Password = newPassword
+        });
+
+        Assert.Equal(HttpStatusCode.OK, changeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, newLogin.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminDashboard_WithUserToken_ShouldReturnForbidden()
+    {
+        var email = $"userrole_{Guid.NewGuid():N}@mail.com";
+        var (_, token) = await RegisterConfirmAndLoginAsync(email, "Senha@1234");
+
+        using var authorizedClient = factory.CreateClient();
+        authorizedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await authorizedClient.GetAsync("/api/admin/dashboard");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private async Task<JsonElement> RegisterAndConfirmAsync(string email, string password)
+    {
+        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
+        {
+            FullName = "Usuario Teste",
+            Email = email,
+            Password = password
+        });
+
+        registerResponse.EnsureSuccessStatusCode();
+        var registerJson = await registerResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+        var confirmResponse = await _client.PostAsJsonAsync("/api/auth/confirm-email", new ConfirmEmailRequestDto
+        {
+            UserId = registerJson.GetProperty("userId").GetString()!,
+            Token = ExtractTokenFromLatestEmail(factory, "Confirme seu email")
+        });
+
+        confirmResponse.EnsureSuccessStatusCode();
+        return registerJson;
+    }
+
+    private async Task<(JsonElement Register, string AccessToken)> RegisterConfirmAndLoginAsync(string email, string password)
+    {
+        var registerJson = await RegisterAndConfirmAsync(email, password);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDto
+        {
+            Email = email,
+            Password = password
+        });
+
+        loginResponse.EnsureSuccessStatusCode();
+        var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
+        return (registerJson, loginJson.GetProperty("accessToken").GetString()!);
     }
 
     private static string ExtractTokenFromLatestEmail(CustomWebApplicationFactory factory, string subject)

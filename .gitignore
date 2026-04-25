@@ -23,6 +23,9 @@ AuthApi/auth.db-wal
 # Logs
 *.log
 
+# Coverage artifacts
+AuthApi.Tests/coverage/
+
 # OS files
 .DS_Store
 Thumbs.db
