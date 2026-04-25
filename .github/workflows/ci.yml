@@ -25,13 +25,19 @@ jobs:
       - name: Build
         run: dotnet build "Sistema de Autenticação (Login + JWT).sln" --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test "Sistema de Autenticação (Login + JWT).sln" --no-build --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage/ /p:ExcludeByFile="**/obj/**"
+      - name: Test with Coverage
+        run: dotnet test "AuthApi.Tests/AuthApi.Tests.csproj" --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage/ /p:ExcludeByFile="**/obj/**"
+
+      - name: Verify coverage report
+        run: |
+          ls -la ./AuthApi.Tests/coverage
+          test -f ./AuthApi.Tests/coverage/coverage.cobertura.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./AuthApi.Tests/coverage/coverage.cobertura.xml
           slug: gabiRioRange/AuthService.API
-          fail_ci_if_error: false
+          disable_search: true
+          fail_ci_if_error: true
           verbose: true
